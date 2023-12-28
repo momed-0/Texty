@@ -1,4 +1,6 @@
-'use strict';
+
+var stompClient = null;
+var username = null;
 
 var usernamePage = document.querySelector('#username-page');
 var chatPage = document.querySelector('#chat-page');
@@ -8,34 +10,28 @@ var messageInput = document.querySelector('#message');
 var messageArea = document.querySelector('#messageArea');
 var connectingElement = document.querySelector('.connecting');
 
-
-var stompClient = null;
-var username = null;
-
-var colors = [
-    '#2196F3', '#32c787', '#00BCD4', '#ff5652',
-    '#ffc107', '#ff85af', '#FF9800', '#39bbb0'
-];
-
 function connect(event) {
+    //get the username and remove the leading and trailing whitespace
     username = document.querySelector('#name').value.trim();
-    if(username) {
-        usernamePage.classList.add('hidden');
-        chatPage.classList.remove('hidden');
+    if(username) { //check if username is not empty
+        usernamePage.classList.add('hidden');//hide the login page
+        chatPage.classList.remove('hidden');//display the chatpage
 
-        var socket = new SockJS('/texty');
+        var socket = new SockJS('/texty');//create new Websocket connection using sockJS library
+        //create a stomp client over the websocket connection
         stompClient = Stomp.over(socket);
-
+        //onConnected called when connection is successfull
         stompClient.connect({}, onConnected, onError);
     }
     event.preventDefault();
 }
 
 function onConnected() {
-    // Subscribe to the Public Topic
+    // Subscribe to the Public Topic and call onMessageReceived when message is received on this channel
+    //listen to messages asynchronously
     stompClient.subscribe('/topic/public', onMessageReceived);
 
-    // Tell your username to the server
+    // Registration message to the server
     stompClient.send("/app/chat.register",
         {},
         JSON.stringify({sender: username, type: 'JOIN'})
@@ -50,6 +46,7 @@ function onError(error) {
 }
 
 function send(event) {
+    //get the message without leading or training white
     var messageContent = messageInput.value.trim();
 
     if(messageContent && stompClient) {
@@ -60,9 +57,9 @@ function send(event) {
         };
 
         stompClient.send("/app/chat.send", {}, JSON.stringify(chatMessage));
-        messageInput.value = '';
+        messageInput.value = ''; //clears the input and make ready for next message
     }
-    event.preventDefault();
+    event.preventDefault(); // prevent the page from reloading
 }
 
 function onMessageReceived(payload) {
@@ -79,13 +76,6 @@ function onMessageReceived(payload) {
     } else {
         messageElement.classList.add('chat-message');
 
-        var avatarElement = document.createElement('i');
-        var avatarText = document.createTextNode(message.sender[0]);
-        avatarElement.appendChild(avatarText);
-        avatarElement.style['background-color'] = getAvatarColor(message.sender);
-
-        messageElement.appendChild(avatarElement);
-
         var usernameElement = document.createElement('span');
         var usernameText = document.createTextNode(message.sender);
         usernameElement.appendChild(usernameText);
@@ -99,19 +89,10 @@ function onMessageReceived(payload) {
     messageElement.appendChild(textElement);
 
     messageArea.appendChild(messageElement);
+    //scroll to the bottom
     messageArea.scrollTop = messageArea.scrollHeight;
 }
 
-
-function getAvatarColor(messageSender) {
-    var hash = 0;
-    for (var i = 0; i < messageSender.length; i++) {
-        hash = 31 * hash + messageSender.charCodeAt(i);
-    }
-
-    var index = Math.abs(hash % colors.length);
-    return colors[index];
-}
 
 usernameForm.addEventListener('submit', connect, true)
 messageForm.addEventListener('submit', send, true)
